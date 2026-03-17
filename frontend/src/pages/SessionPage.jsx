@@ -49,12 +49,12 @@ function SessionPage() {
   // auto-join session if user is not already a participant and not the host
   useEffect(() => {
     if (!session || !user || loadingSession) return;
-    if (isHost || isParticipant) return;
+    if (isHost || isParticipant || joinSessionMutation.isPending) return;
 
     joinSessionMutation.mutate(id, { onSuccess: refetch });
 
     // remove the joinSessionMutation, refetch from dependencies to avoid infinite loop
-  }, [session, user, loadingSession, isHost, isParticipant, id]);
+  }, [session?._id, user?.id, loadingSession, isHost, isParticipant, id, joinSessionMutation.isPending]);
 
   // redirect the "participant" when session ends
   useEffect(() => {

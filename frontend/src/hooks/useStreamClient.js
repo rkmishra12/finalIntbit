@@ -12,16 +12,30 @@ function useStreamClient(session, loadingSession, isHost, isParticipant) {
   const [isInitializingCall, setIsInitializingCall] = useState(true);
 
   useEffect(() => {
+    if (loadingSession) {
+      setIsInitializingCall(true);
+      return undefined;
+    }
+
+    if (!session?.callId || session.status === "completed" || (!isHost && !isParticipant)) {
+      setStreamClient(null);
+      setCall(null);
+      setChatClient(null);
+      setChannel(null);
+      setIsInitializingCall(false);
+      return undefined;
+    }
+
+    let isCancelled = false;
     let videoCall = null;
     let chatClientInstance = null;
 
     const initCall = async () => {
-      if (!session?.callId) return;
-      if (!isHost && !isParticipant) return;
-      if (session.status === "completed") return;
+      setIsInitializingCall(true);
 
       try {
         const { token, userId, userName, userImage } = await sessionApi.getStreamToken();
+        if (isCancelled) return;
 
         const client = await initializeStreamClient(
           {
@@ -31,11 +45,13 @@ function useStreamClient(session, loadingSession, isHost, isParticipant) {
           },
           token
         );
+        if (isCancelled) return;
 
         setStreamClient(client);
 
         videoCall = client.call("default", session.callId);
-        await videoCall.join({ create: true });
+        await videoCall.join({ create: false });
+        if (isCancelled) return;
         setCall(videoCall);
 
         const apiKey = import.meta.env.VITE_STREAM_API_KEY;
@@ -49,23 +65,30 @@ function useStreamClient(session, loadingSession, isHost, isParticipant) {
           },
           token
         );
+        if (isCancelled) return;
         setChatClient(chatClientInstance);
 
         const chatChannel = chatClientInstance.channel("messaging", session.callId);
         await chatChannel.watch();
+        if (isCancelled) return;
         setChannel(chatChannel);
       } catch (error) {
-        toast.error("Failed to join video call");
+        if (!isCancelled) {
+          toast.error(error.response?.data?.message || error.message || "Failed to join video call");
+        }
         console.error("Error init call", error);
       } finally {
-        setIsInitializingCall(false);
+        if (!isCancelled) {
+          setIsInitializingCall(false);
+        }
       }
     };
 
-    if (session && !loadingSession) initCall();
+    initCall();
 
     // cleanup - performance reasons
     return () => {
+      isCancelled = true;
       // iife
       (async () => {
         try {
@@ -77,7 +100,7 @@ function useStreamClient(session, loadingSession, isHost, isParticipant) {
         }
       })();
     };
-  }, [session, loadingSession, isHost, isParticipant]);
+  }, [session?.callId, session?.status, loadingSession, isHost, isParticipant]);
 
   return {
     streamClient,
