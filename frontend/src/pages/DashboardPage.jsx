@@ -22,7 +22,7 @@ function DashboardPage() {
   const { data: recentSessionsData, isLoading: loadingRecentSessions } = useMyRecentSessions();
 
   const handleCreateRoom = () => {
-    if (!roomConfig.problem || !roomConfig.difficulty) return;
+    if (!roomConfig.problem || !roomConfig.difficulty || createSessionMutation.isPending) return;
 
     createSessionMutation.mutate(
       {
