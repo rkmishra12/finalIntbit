@@ -64,7 +64,7 @@ Notes:
 
 ## Deploy Backend To Render
 
-Set the Render service root to `backend`, or use the included `render.yaml` blueprint.
+Set the Render service root to `backend`.
 
 Required environment variables:
 
@@ -79,14 +79,8 @@ STREAM_API_SECRET=your_stream_api_secret
 CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
 CLIENT_URL=https://your-vercel-frontend.vercel.app
-CODE_EXECUTION_TIMEOUT_MS=5000
-CODE_EXECUTION_MEMORY_MB=256
-CODE_EXECUTION_CPU_COUNT=1
+CODE_EXECUTION_ENABLED=false
 CODE_EXECUTION_MAX_SOURCE_BYTES=50000
-CODE_EXECUTION_MAX_OUTPUT_BYTES=64000
-DOCKER_JS_IMAGE=node:20-alpine
-DOCKER_PYTHON_IMAGE=python:3.11-alpine
-DOCKER_JAVA_IMAGE=eclipse-temurin:21-jdk-alpine
 ```
 
 Useful endpoint checks:
@@ -94,25 +88,8 @@ Useful endpoint checks:
 - `GET /`
 - `GET /health`
 
-## Code Execution Sandbox
+## Hosted Code Execution
 
-Code execution runs through the backend server.
+For a standard Render deployment, code execution is disabled by default. This avoids running untrusted user code directly inside your web service.
 
-If you want containerized execution in production, the server needs Docker images available:
-
-```bash
-docker pull node:20-alpine
-docker pull python:3.11-alpine
-docker pull eclipse-temurin:21-jdk-alpine
-```
-
-Sandbox protections:
-
-- no outbound network access
-- read-only container filesystem
-- temporary writable `/tmp` only
-- non-root container user
-- dropped Linux capabilities
-- `no-new-privileges`
-- CPU, memory, process-count, source-size, output-size, and execution-time limits
-- per-user request throttling
+If you want hosted code execution later, connect the app to a separate purpose-built sandbox service instead of running interpreters or containers inside the Render web process.

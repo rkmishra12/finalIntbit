@@ -2,6 +2,14 @@ import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
 
+function parseBoolean(value, defaultValue = false) {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return value === "true";
+}
+
 export const ENV = {
   PORT: process.env.PORT || 3000,
   DB_URL: process.env.DB_URL,
@@ -11,12 +19,7 @@ export const ENV = {
   INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
   STREAM_API_KEY: process.env.STREAM_API_KEY,
   STREAM_API_SECRET: process.env.STREAM_API_SECRET,
+  CODE_EXECUTION_ENABLED: parseBoolean(process.env.CODE_EXECUTION_ENABLED, false),
   CODE_EXECUTION_TIMEOUT_MS: process.env.CODE_EXECUTION_TIMEOUT_MS,
-  CODE_EXECUTION_MEMORY_MB: process.env.CODE_EXECUTION_MEMORY_MB,
-  CODE_EXECUTION_CPU_COUNT: process.env.CODE_EXECUTION_CPU_COUNT,
   CODE_EXECUTION_MAX_SOURCE_BYTES: process.env.CODE_EXECUTION_MAX_SOURCE_BYTES,
-  CODE_EXECUTION_MAX_OUTPUT_BYTES: process.env.CODE_EXECUTION_MAX_OUTPUT_BYTES,
-  DOCKER_JS_IMAGE: process.env.DOCKER_JS_IMAGE,
-  DOCKER_PYTHON_IMAGE: process.env.DOCKER_PYTHON_IMAGE,
-  DOCKER_JAVA_IMAGE: process.env.DOCKER_JAVA_IMAGE,
 };

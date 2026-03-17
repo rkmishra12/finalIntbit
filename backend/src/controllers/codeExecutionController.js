@@ -1,4 +1,8 @@
-import { runCodeInSandbox, validateExecutionRequest } from "../lib/codeExecution.js";
+import {
+  isCodeExecutionEnabled,
+  runCodeInSandbox,
+  validateExecutionRequest,
+} from "../lib/codeExecution.js";
 
 const WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 20;
@@ -11,6 +15,11 @@ export async function executeCode(req, res) {
 
   if (validationError) {
     return res.status(400).json({ success: false, error: validationError });
+  }
+
+  if (!isCodeExecutionEnabled()) {
+    const result = await runCodeInSandbox({ language, code });
+    return res.status(503).json(result);
   }
 
   const limiterKey = req.user?._id?.toString() || req.ip;
