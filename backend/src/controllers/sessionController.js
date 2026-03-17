@@ -1,8 +1,17 @@
-import { chatClient, streamClient } from "../lib/stream.js";
+import {
+  assertStreamConfigured,
+  chatClient,
+  ensureStreamUser,
+  streamClient,
+} from "../lib/stream.js";
 import Session from "../models/Session.js";
 
 export async function createSession(req, res) {
+  let session = null;
+
   try {
+    assertStreamConfigured();
+
     const { problem, difficulty } = req.body;
     const userId = req.user._id;
     const clerkId = req.user.clerkId;
@@ -15,7 +24,9 @@ export async function createSession(req, res) {
     const callId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // create session in db
-    const session = await Session.create({ problem, difficulty, host: userId, callId });
+    session = await Session.create({ problem, difficulty, host: userId, callId });
+
+    await ensureStreamUser(req.user);
 
     // create stream video call
     await streamClient.video.call("default", callId).getOrCreate({
@@ -37,7 +48,18 @@ export async function createSession(req, res) {
     res.status(201).json({ session });
   } catch (error) {
     console.log("Error in createSession controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+
+    if (session?._id) {
+      try {
+        await Session.findByIdAndDelete(session._id);
+      } catch (cleanupError) {
+        console.log("Error rolling back failed session creation:", cleanupError.message);
+      }
+    }
+
+    res.status(error.statusCode || 500).json({
+      message: error.exposeMessage || "Failed to create session room",
+    });
   }
 }
 
@@ -94,6 +116,8 @@ export async function getSessionById(req, res) {
 
 export async function joinSession(req, res) {
   try {
+    assertStreamConfigured();
+
     const { id } = req.params;
     const userId = req.user._id;
     const clerkId = req.user.clerkId;
@@ -113,6 +137,8 @@ export async function joinSession(req, res) {
     // check if session is already full - has a participant
     if (session.participant) return res.status(409).json({ message: "Session is full" });
 
+    await ensureStreamUser(req.user);
+
     session.participant = userId;
     await session.save();
 
@@ -122,12 +148,14 @@ export async function joinSession(req, res) {
     res.status(200).json({ session });
   } catch (error) {
     console.log("Error in joinSession controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(error.statusCode || 500).json({ message: error.exposeMessage || "Internal Server Error" });
   }
 }
 
 export async function endSession(req, res) {
   try {
+    assertStreamConfigured();
+
     const { id } = req.params;
     const userId = req.user._id;
 
@@ -147,11 +175,19 @@ export async function endSession(req, res) {
 
     // delete stream video call
     const call = streamClient.video.call("default", session.callId);
-    await call.delete({ hard: true });
+    try {
+      await call.delete({ hard: true });
+    } catch (error) {
+      console.log("Error deleting stream video call:", error.message);
+    }
 
     // delete stream chat channel
     const channel = chatClient.channel("messaging", session.callId);
-    await channel.delete();
+    try {
+      await channel.delete();
+    } catch (error) {
+      console.log("Error deleting stream chat channel:", error.message);
+    }
 
     session.status = "completed";
     await session.save();
@@ -159,6 +195,6 @@ export async function endSession(req, res) {
     res.status(200).json({ session, message: "Session ended successfully" });
   } catch (error) {
     console.log("Error in endSession controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(error.statusCode || 500).json({ message: error.exposeMessage || "Internal Server Error" });
   }
 }
